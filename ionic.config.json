@@ -1,0 +1,7 @@
+{
+  "name": "X GPT",
+  "integrations": {
+    "capacitor": {}
+  },
+  "type": "vue"
+}
