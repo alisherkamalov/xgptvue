@@ -108,6 +108,7 @@ const sendAnswer = async () => {
       data = await response.json();
     } catch (jsonError) {
       throw new Error("Failed to parse JSON response: " + jsonError.message);
+      
     }
 
     console.log("Response data:", data);
@@ -136,12 +137,15 @@ const sendAnswer = async () => {
         }, 10);
       } else {
         console.error("Empty output received from the API.");
+        isSenttext.value = false;
       }
     } else {
       console.error("No 'answer' field in the response data.");
+      isSenttext.value = false;
     }
   } catch (error) {
     console.error("Error making request:", error.message);
+    isSenttext.value = false;
   }
 };
 </script>
@@ -155,7 +159,7 @@ const sendAnswer = async () => {
 }
 .container {
   width: 100%;
-  height: 100vh;
+  height: 100dvh;
   display: flex;
   flex-direction: column;
   justify-content: flex-end;
