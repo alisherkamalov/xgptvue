@@ -1,11 +1,13 @@
 <template>
   <div class="container">
-    <video
-      src="/universe.mp4"
-      class="universe"
-      autoplay
-      :style="{ opacity: opacitybg }"
-    ></video>
+    <div class="center-logo" :style="{ opacity: opacitybg }">
+      <img
+      src="/logo.png"
+      class="gygole"
+    ></img>
+    I am G-GPT!
+    </div>
+    
     <div class="answers-column">
       <div
         v-for="(answer, index) in answers"
@@ -20,6 +22,7 @@
         {{ answer.text }}
       </div>
     </div>
+    
 
     <div class="chat">
       <div class="input-message">
@@ -65,24 +68,13 @@
 
 <script setup>
 import { ref, nextTick } from "vue";
-import axios from "axios";
-
 const opacitybg = ref(1);
 const divText = ref("");
-const dispanswer = ref("none");
+const dispanswer = ref("block"); 
 const classanswer = ref("answer");
 const answers = ref([]);
 const loading = ref(false);
-const modelLoading = ref(true);
 const isSenttext = ref(false);
-
-const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
-
-const GPT_RU_API_URL = "https://api-inference.huggingface.co/models/gpt2";
-const API_KEY = "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";
-
-const RATE_LIMIT_DELAY_MS = 1000;
-let lastRequestTime = 0;
 
 const scrollToBottom = () => {
   nextTick(() => {
@@ -94,70 +86,62 @@ const scrollToBottom = () => {
 };
 
 const sendAnswer = async () => {
-  if (loading.value) return;
-
-  dispanswer.value = "flex";
-  loading.value = true;
   isSenttext.value = true;
-  console.log("Button clicked, isSenttext set to true");
-
-  const now = Date.now();
-  if (now - lastRequestTime < RATE_LIMIT_DELAY_MS) {
-    console.warn("Слишком частые запросы. Попробуйте позже.");
-    loading.value = false;
-    return;
-  }
-
-  lastRequestTime = now;
-  const prompt = divText.value;
-
   try {
-    const response = await axios.post(
-      GPT_RU_API_URL,
-      {
-        inputs: prompt,
-        parameters: {
-          max_length: 150,
-          temperature: 1,
-        },
+    const response = await fetch('https://xgptback.vercel.app/api/ask/', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
       },
-      {
-        headers: {
-          Authorization: `Bearer ${API_KEY}`,
-          "Content-Type": "application/json",
-        },
+      body: JSON.stringify({
+        question: divText.value,
+        
+      }),
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! Status: ${response.status}`);
+    }
+
+    let data;
+    try {
+      data = await response.json();
+    } catch (jsonError) {
+      throw new Error("Failed to parse JSON response: " + jsonError.message);
+    }
+
+    console.log("Response data:", data);
+
+    if (data.answer) {
+      const output = data.answer.trim();
+      if (output) {
+        answers.value.push({
+          text: output,
+          opacity: 0,
+          translate: "0px 10px",
+        });
+        console.log(answers.value);
+
+        setTimeout(() => {
+          opacitybg.value = 0;
+          classanswer.value = "answer active";
+          const lastAnswer = answers.value[answers.value.length - 1];
+          lastAnswer.opacity = 1;
+          lastAnswer.translate = "0px 0px";
+
+          scrollToBottom();
+          loading.value = false;
+          isSenttext.value = false;
+          console.log("Answer added and UI updated");
+        }, 10);
+      } else {
+        console.error("Empty output received from the API.");
       }
-    );
-    console.log("Response data:", response.data);
-    const output =
-      response.data?.[0]?.generated_text || response.data?.text || "";
-    if (output.trim()) {
-      answers.value.push({
-        text: output.trim(),
-        opacity: 0,
-        translate: "0px 10px",
-      });
-
-      setTimeout(() => {
-        opacitybg.value = 0;
-        classanswer.value = "answer active";
-        const lastAnswer = answers.value[answers.value.length - 1];
-        lastAnswer.opacity = 1;
-        lastAnswer.translate = "0px 0px";
-
-        scrollToBottom();
-        loading.value = false;
-        isSenttext.value = false;
-        console.log("Answer added and UI updated");
-      }, 10);
     } else {
-      console.error("Empty output received from the API.");
+      console.error("No 'answer' field in the response data.");
     }
   } catch (error) {
-    console.error(
-      "Error making request:",
-      error.response ? error.response.data : error.message
-    );
+    console.error("Error making request:", error.message);
   }
 };
 </script>
@@ -185,12 +169,20 @@ const sendAnswer = async () => {
   background-color: #000;
   position: relative;
 }
-
-.universe {
-  position: absolute;
+.center-logo {
   width: 100%;
+  display: flex;
+  position: absolute;
   top: 160px;
-  height: 220px;
+  gap: 15px;
+  align-items: center;
+  color: white;
+  flex-direction: column;
+  font-family: "Kanit";
+  transition: all 0.5s ease;
+}
+.gygole {
+  width:50px;
   transition: all 0.5s ease;
 }
 
@@ -240,7 +232,7 @@ const sendAnswer = async () => {
   opacity: 0;
   border-radius: 10px;
   color: white;
-  font-family: "Kanit";
+  font-family: "Kanit", 'Inter';
   font-weight: 300;
   transform: translateY(50px);
   white-space: normal;
@@ -265,7 +257,7 @@ const sendAnswer = async () => {
   word-wrap: break-word;
   word-break: break-word;
   padding-left: 5px;
-  font-family: "Kanit";
+  font-family: "Kanit", 'Inter';
   background-color: #2e2e2e;
   transition: all 0.5s ease;
 }
