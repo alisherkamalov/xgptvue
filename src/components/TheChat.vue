@@ -90,7 +90,7 @@ const sendAnswer = async () => {
   try {
     const response = await fetch('https://xgptback.vercel.app/api/ask/', {
       method: 'POST',
-      mode: 'no-cors',
+      
       headers: {
         'Content-Type': 'application/json',
       },
