@@ -229,6 +229,7 @@ const sendAnswer = async () => {
           loading.value = false;
           isSenttext.value = false;
           console.log("Answer added and UI updated");
+          divText.value = '';
         }, 10);
       } else {
         console.error("Empty output received from the API.");
