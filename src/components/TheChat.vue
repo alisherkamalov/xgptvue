@@ -180,14 +180,10 @@ const sendAnswer = async () => {
   loading.value = true;
 
   try {
-<<<<<<< HEAD
-    const response = await fetch("https://xgptback.vercel.app/api/ask/", {
-      method: "POST",
-=======
+    
     const response = await fetch('https://xgptback.vercel.app/api/ask/', {
       method: 'POST',
       
->>>>>>> 8caf912a1512318991ab07c1717609b014d3e7ca
       headers: {
         "Content-Type": "application/json",
       },
@@ -244,11 +240,10 @@ const sendAnswer = async () => {
     }
   } catch (error) {
     console.error("Error making request:", error.message);
-<<<<<<< HEAD
+
   } finally {
     loading.value = false;
-=======
->>>>>>> 8caf912a1512318991ab07c1717609b014d3e7ca
+
     isSenttext.value = false;
   }
 };
