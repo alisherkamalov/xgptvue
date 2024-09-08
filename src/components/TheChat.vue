@@ -1,16 +1,14 @@
 <template>
+  <TheWarning :opacityWarning="opacityW" :translateWarning="translateW" />
   <div class="container">
     <div class="center-logo" :style="{ opacity: opacitybg }">
-      <img
-      src="/logo.png"
-      class="gygole"
-    ></img>
-    I am G-GPT!
+      <img src="/logo.png" class="gygole" />
+      I am G-GPT!
     </div>
-    
+
     <div class="answers-column">
       <div
-        v-for="(answer, index) in answers"
+        v-for="(answer, index) in modifiedAnswers"
         :key="index"
         :class="classanswer"
         :style="{
@@ -19,10 +17,30 @@
           transform: answer.translate,
         }"
       >
-        {{ answer.text }}
+        <template v-if="answer.codeBlock">
+          <div v-if="answer.beforeBackticks">{{ answer.beforeBackticks }}</div>
+          <pre>
+            <span class="text-code">{{ answer.codeBlock }}</span>
+            
+            <button 
+              class="copy-code" 
+              @mousedown="startHolding" 
+              @mouseup="stopHolding" 
+              @mouseleave="stopHolding"
+              @click="copyText(answer.codeBlock)"
+            >
+              <svg class="ico-copy" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512">
+                <path :fill="colorCopy" d="M384 336l-192 0c-8.8 0-16-7.2-16-16l0-256c0-8.8 7.2-16 16-16l140.1 0L400 115.9 400 320c0 8.8-7.2 16-16 16zM192 384l192 0c35.3 0 64-28.7 64-64l0-204.1c0-12.7-5.1-24.9-14.1-33.9L366.1 14.1c-9-9-21.2-14.1-33.9-14.1L192 0c-35.3 0-64 28.7-64 64l0 256c0 35.3 28.7 64 64 64zM64 128c-35.3 0-64 28.7-64 64L0 448c0 35.3 28.7 64 64 64l192 0c35.3 0 64-28.7 64-64l0-32-48 0 0 32c0 8.8-7.2 16-16 16L64 464c-8.8 0-16-7.2-16-16l0-256c0-8.8 7.2-16 16-16l32 0 0-48-32 0z"/>
+              </svg>
+            </button>
+          </pre>
+          <div v-if="answer.afterBackticks">{{ answer.afterBackticks }}</div>
+        </template>
+        <template v-else>
+          <span class="text">{{ answer.text }}</span>
+        </template>
       </div>
     </div>
-    
 
     <div class="chat">
       <div class="input-message">
@@ -41,6 +59,7 @@
           <i class="icon2">
             <svg
               v-if="isSenttext"
+              class="loading"
               xmlns="http://www.w3.org/2000/svg"
               viewBox="0 0 448 512"
             >
@@ -67,14 +86,75 @@
 </template>
 
 <script setup>
-import { ref, nextTick } from "vue";
+import { ref, nextTick, computed } from "vue";
+import TheWarning from "./TheWarning.vue";
+
 const opacitybg = ref(1);
 const divText = ref("");
-const dispanswer = ref("block"); 
+const dispanswer = ref("block");
 const classanswer = ref("answer");
 const answers = ref([]);
+const opacityW = ref(0.1);
+const translateW = ref("0px -55px");
 const loading = ref(false);
 const isSenttext = ref(false);
+const colorCopy = ref("white");
+let intervalId = null;
+const copyText = async (text) => {
+  try {
+    await navigator.clipboard.writeText(text);
+    console.log("Text copied to clipboard");
+  } catch (err) {
+    console.error("Failed to copy text: ", err);
+  }
+};
+const startHolding = () => {
+  colorCopy.value = "black";
+  intervalId = setInterval(() => {
+    console.log("Button is being held down");
+  }, 100); 
+};
+
+const stopHolding = () => {
+  colorCopy.value = "white";
+  if (intervalId) {
+    clearInterval(intervalId);
+    intervalId = null;
+  }
+};
+
+const splitText = (text) => {
+  const backtickRegex = /```/g;
+  const parts = text.split(backtickRegex);
+
+  if (parts.length === 1) {
+    return { beforeBackticks: text, codeBlock: "", afterBackticks: "" };
+  }
+
+  let codeBlock = parts[1]
+    ? parts[1]
+        .split("\n")
+        .map((line) => {
+          return line.trimStart().replace(/^\w+\s*/, "");
+        })
+        .join("\n")
+    : "";
+
+  const afterBackticks = parts.slice(2).join("").trimStart();
+
+  return {
+    beforeBackticks: parts[0] || "",
+    codeBlock,
+    afterBackticks,
+  };
+};
+
+const modifiedAnswers = computed(() =>
+  answers.value.map((answer) => ({
+    ...answer,
+    ...splitText(answer.text),
+  }))
+);
 
 const scrollToBottom = () => {
   nextTick(() => {
@@ -86,16 +166,27 @@ const scrollToBottom = () => {
 };
 
 const sendAnswer = async () => {
+  if (divText.value.trim() === "") {
+    opacityW.value = 1;
+    translateW.value = "0px 75px";
+    setTimeout(() => {
+      opacityW.value = 0.1;
+      translateW.value = "0px -55px";
+    }, 2000);
+    return;
+  }
+
   isSenttext.value = true;
+  loading.value = true;
+
   try {
-    const response = await fetch('https://xgptback.vercel.app/api/ask/', {
-      method: 'POST',
+    const response = await fetch("https://xgptback.vercel.app/api/ask/", {
+      method: "POST",
       headers: {
-        'Content-Type': 'application/json',
+        "Content-Type": "application/json",
       },
       body: JSON.stringify({
         question: divText.value,
-        
       }),
     });
 
@@ -126,8 +217,10 @@ const sendAnswer = async () => {
           opacitybg.value = 0;
           classanswer.value = "answer active";
           const lastAnswer = answers.value[answers.value.length - 1];
-          lastAnswer.opacity = 1;
-          lastAnswer.translate = "0px 0px";
+          setTimeout(() => {
+            lastAnswer.opacity = 1;
+            lastAnswer.translate = "0px 0px";
+          }, 500);
 
           scrollToBottom();
           loading.value = false;
@@ -142,11 +235,58 @@ const sendAnswer = async () => {
     }
   } catch (error) {
     console.error("Error making request:", error.message);
+  } finally {
+    loading.value = false;
+    isSenttext.value = false;
   }
 };
 </script>
 
 <style scoped>
+@keyframes load {
+  from {
+    opacity: 0.1;
+  }
+  to {
+    opacity: 1;
+  }
+}
+.ico-copy {
+  width: 15px;
+  height: 15px;
+  padding: 7px 10px 10px 7px;
+  translate: 0px -31px;
+}
+.text-code {
+  max-width: 400px;
+}
+.copy-code {
+  width: 30px;
+  height: 30px;
+  margin-left: 10px;
+  border-radius: 5px;
+  background-color: black;
+  color: white;
+  border: 1px solid grey;
+  transition: all 0.5s ease;
+}
+.copy-code:active {
+  background-color: white;
+}
+pre {
+  background-color: black;
+  padding: 10px;
+  position: relative;
+  margin: 5px;
+  display: flex;
+  justify-content: space-between;
+  border-radius: 4px;
+  white-space: pre-wrap;
+}
+.loading {
+  opacity: 0.1;
+  animation: load 1s infinite alternate ease-in-out;
+}
 .answers-column {
   width: 100%;
   height: auto;
@@ -155,7 +295,7 @@ const sendAnswer = async () => {
 }
 .container {
   width: 100%;
-  height: 100vh;
+  height: 100dvh;
   display: flex;
   flex-direction: column;
   justify-content: flex-end;
@@ -182,7 +322,7 @@ const sendAnswer = async () => {
   transition: all 0.5s ease;
 }
 .gygole {
-  width:50px;
+  width: 50px;
   transition: all 0.5s ease;
 }
 
@@ -232,7 +372,7 @@ const sendAnswer = async () => {
   opacity: 0;
   border-radius: 10px;
   color: white;
-  font-family: "Kanit", 'Inter';
+  font-family: "Kanit", "Inter";
   font-weight: 300;
   transform: translateY(50px);
   white-space: normal;
@@ -257,7 +397,7 @@ const sendAnswer = async () => {
   word-wrap: break-word;
   word-break: break-word;
   padding-left: 5px;
-  font-family: "Kanit", 'Inter';
+  font-family: "Kanit", "Inter";
   background-color: #2e2e2e;
   transition: all 0.5s ease;
 }
@@ -279,5 +419,7 @@ input:focus {
   display: flex;
   width: 22.5px;
   height: 22.5px;
+  position: relative;
+  left: 0.1px;
 }
 </style>
