@@ -135,7 +135,7 @@ const splitText = (text) => {
     ? parts[1]
         .split("\n")
         .map((line) => {
-          return line.trimStart().replace(/^\w+\s*/, "");
+          return line.trimStart(); 
         })
         .join("\n")
     : "";
@@ -148,6 +148,7 @@ const splitText = (text) => {
     afterBackticks,
   };
 };
+
 
 const modifiedAnswers = computed(() =>
   answers.value.map((answer) => ({
