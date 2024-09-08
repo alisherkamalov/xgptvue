@@ -180,8 +180,14 @@ const sendAnswer = async () => {
   loading.value = true;
 
   try {
+<<<<<<< HEAD
     const response = await fetch("https://xgptback.vercel.app/api/ask/", {
       method: "POST",
+=======
+    const response = await fetch('https://xgptback.vercel.app/api/ask/', {
+      method: 'POST',
+      
+>>>>>>> 8caf912a1512318991ab07c1717609b014d3e7ca
       headers: {
         "Content-Type": "application/json",
       },
@@ -199,6 +205,7 @@ const sendAnswer = async () => {
       data = await response.json();
     } catch (jsonError) {
       throw new Error("Failed to parse JSON response: " + jsonError.message);
+      
     }
 
     console.log("Response data:", data);
@@ -229,14 +236,19 @@ const sendAnswer = async () => {
         }, 10);
       } else {
         console.error("Empty output received from the API.");
+        isSenttext.value = false;
       }
     } else {
       console.error("No 'answer' field in the response data.");
+      isSenttext.value = false;
     }
   } catch (error) {
     console.error("Error making request:", error.message);
+<<<<<<< HEAD
   } finally {
     loading.value = false;
+=======
+>>>>>>> 8caf912a1512318991ab07c1717609b014d3e7ca
     isSenttext.value = false;
   }
 };
