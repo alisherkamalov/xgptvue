@@ -17,11 +17,10 @@
           transform: answer.translate,
         }"
       >
-        <template v-if="answer.codeBlock">
+        <template v-if="answer.codeBlock !== ''">
           <div v-if="answer.beforeBackticks">{{ answer.beforeBackticks }}</div>
           <pre>
-            <span class="text-code">{{ answer.codeBlock }}</span>
-            
+            <code class="text-code">{{ answer.codeBlock }}</code>
             <button 
               class="copy-code" 
               @mousedown="startHolding" 
@@ -52,8 +51,23 @@
             />
           </svg>
         </i>
-        <div class="cont-input">
-          <input type="text" class="input-text" v-model="divText" />
+        <div class="cont-inputs">
+          <div
+            class="cont-input"
+            id="cont-input"
+            :style="{ height: heightInput + 'px' }"
+          >
+            <input
+              v-for="(input, index) in inputs"
+              :key="index"
+              type="text"
+              :id="`code-${index + 1}`"
+              name="code[]"
+              class="input-text"
+              v-model="inputs[index]"
+            />
+          </div>
+          <div class="bottom-cont" :style="{ display: dispBottomcont }"></div>
         </div>
         <button class="send-btn icon" @click="sendAnswer">
           <i class="icon2">
@@ -86,20 +100,23 @@
 </template>
 
 <script setup>
-import { ref, nextTick, computed } from "vue";
+import { ref, nextTick, onMounted, onUnmounted, computed } from "vue";
 import TheWarning from "./TheWarning.vue";
 
 const opacitybg = ref(1);
-const divText = ref("");
+const inputs = ref([""]);
 const dispanswer = ref("block");
 const classanswer = ref("answer");
 const answers = ref([]);
-const opacityW = ref(0.1);
-const translateW = ref("0px -55px");
+const dispBottomcont = ref("none");
+const heightInput = ref(20);
 const loading = ref(false);
 const isSenttext = ref(false);
+const opacityW = ref(0.1);
+const translateW = ref("0px -55px");
 const colorCopy = ref("white");
 let intervalId = null;
+
 const copyText = async (text) => {
   try {
     await navigator.clipboard.writeText(text);
@@ -108,11 +125,12 @@ const copyText = async (text) => {
     console.error("Failed to copy text: ", err);
   }
 };
+
 const startHolding = () => {
   colorCopy.value = "black";
   intervalId = setInterval(() => {
     console.log("Button is being held down");
-  }, 100); 
+  }, 100);
 };
 
 const stopHolding = () => {
@@ -131,16 +149,8 @@ const splitText = (text) => {
     return { beforeBackticks: text, codeBlock: "", afterBackticks: "" };
   }
 
-  let codeBlock = parts[1]
-    ? parts[1]
-        .split("\n")
-        .map((line) => {
-          return line.trimStart(); 
-        })
-        .join("\n")
-    : "";
-
-  const afterBackticks = parts.slice(2).join("").trimStart();
+  const codeBlock = parts[1] ? parts[1].trim() : "";
+  const afterBackticks = parts.slice(2).join("").trim();
 
   return {
     beforeBackticks: parts[0] || "",
@@ -149,13 +159,72 @@ const splitText = (text) => {
   };
 };
 
-
 const modifiedAnswers = computed(() =>
   answers.value.map((answer) => ({
     ...answer,
     ...splitText(answer.text),
   }))
 );
+
+const addInput = () => {
+  inputs.value.push("");
+  heightInput.value += 30;
+  dispBottomcont.value = "flex";
+
+  nextTick(() => {
+    const chatSection = document.querySelector(".chat");
+    if (chatSection) {
+      chatSection.scrollTo({
+        top: chatSection.scrollHeight,
+        behavior: "smooth",
+      });
+    }
+
+    const lastInput = document.querySelector(`#code-${inputs.value.length}`);
+    if (lastInput) {
+      lastInput.focus();
+    }
+  });
+};
+
+const removeInput = () => {
+  if (inputs.value.length > 1) {
+    inputs.value.pop();
+    heightInput.value -= 30;
+
+    if (inputs.value.length === 1) {
+      dispBottomcont.value = "none";
+    }
+
+    nextTick(() => {
+      const chatSection = document.querySelector(".chat");
+      if (chatSection) {
+        chatSection.scrollTo({
+          top: chatSection.scrollHeight,
+          behavior: "smooth",
+        });
+      }
+
+      const lastInput = document.querySelector(`#code-${inputs.value.length}`);
+      if (lastInput) {
+        lastInput.focus();
+      }
+    });
+  }
+};
+
+const handleKeydown = (event) => {
+  if (event.key === "Enter") {
+    event.preventDefault();
+    addInput();
+  }
+};
+
+const handleKeyup = (event) => {
+  if (event.key === "Backspace") {
+    removeInput();
+  }
+};
 
 const scrollToBottom = () => {
   nextTick(() => {
@@ -167,45 +236,34 @@ const scrollToBottom = () => {
 };
 
 const sendAnswer = async () => {
-  if (divText.value.trim() === "") {
+  isSenttext.value = true;
+
+  const combinedText = inputs.value.join(" ").trim();
+
+  if (combinedText === "") {
+    isSenttext.value = false;
     opacityW.value = 1;
     translateW.value = "0px 75px";
     setTimeout(() => {
       opacityW.value = 0.1;
       translateW.value = "0px -55px";
     }, 2000);
+
     return;
   }
 
-  isSenttext.value = true;
-  loading.value = true;
-
   try {
-    
-    const response = await fetch('https://xgptback.vercel.app/api/ask/', {
-      method: 'POST',
-      
+    const response = await fetch("https://xgptback.vercel.app/api/ask/", {
+      method: "POST",
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({
-        question: divText.value,
-      }),
+      body: JSON.stringify({ question: combinedText }),
     });
 
-    if (!response.ok) {
-      throw new Error(`HTTP error! Status: ${response.status}`);
-    }
+    if (!response.ok) throw new Error(`HTTP error! Status: ${response.status}`);
 
-    let data;
-    try {
-      data = await response.json();
-    } catch (jsonError) {
-      throw new Error("Failed to parse JSON response: " + jsonError.message);
-      
-    }
-
-    console.log("Response data:", data);
+    const data = await response.json();
 
     if (data.answer) {
       const output = data.answer.trim();
@@ -215,40 +273,48 @@ const sendAnswer = async () => {
           opacity: 0,
           translate: "0px 10px",
         });
-        console.log(answers.value);
 
         setTimeout(() => {
           opacitybg.value = 0;
           classanswer.value = "answer active";
           const lastAnswer = answers.value[answers.value.length - 1];
-          setTimeout(() => {
-            lastAnswer.opacity = 1;
-            lastAnswer.translate = "0px 0px";
-          }, 500);
+          lastAnswer.opacity = 1;
+          lastAnswer.translate = "0px 0px";
 
           scrollToBottom();
           loading.value = false;
           isSenttext.value = false;
-          console.log("Answer added and UI updated");
-          divText.value = '';
         }, 10);
-      } else {
-        console.error("Empty output received from the API.");
-        isSenttext.value = false;
+        inputs.value = [inputs.value[0]];
+        heightInput.value = 20;
+        dispBottomcont.value = "none";
+
+        const firstInput = document.querySelector(`#code-1`);
+
+        firstInput.value = "";
       }
-    } else {
-      console.error("No 'answer' field in the response data.");
-      isSenttext.value = false;
     }
   } catch (error) {
     console.error("Error making request:", error.message);
-
-  } finally {
-    loading.value = false;
-
     isSenttext.value = false;
   }
 };
+
+onMounted(() => {
+  const inputContainer = document.querySelector("#cont-input");
+  if (inputContainer) {
+    inputContainer.addEventListener("keydown", handleKeydown);
+    inputContainer.addEventListener("keyup", handleKeyup);
+  }
+});
+
+onUnmounted(() => {
+  const inputContainer = document.querySelector("#cont-input");
+  if (inputContainer) {
+    inputContainer.removeEventListener("keydown", handleKeydown);
+    inputContainer.removeEventListener("keyup", handleKeyup);
+  }
+});
 </script>
 
 <style scoped>
@@ -259,6 +325,10 @@ const sendAnswer = async () => {
   to {
     opacity: 1;
   }
+}
+.loading {
+  opacity: 0.1;
+  animation: load 1s infinite alternate ease-in-out;
 }
 .ico-copy {
   width: 15px;
@@ -292,9 +362,8 @@ pre {
   border-radius: 4px;
   white-space: pre-wrap;
 }
-.loading {
-  opacity: 0.1;
-  animation: load 1s infinite alternate ease-in-out;
+.cont-inputs {
+  width: 100%;
 }
 .answers-column {
   width: 100%;
@@ -302,9 +371,13 @@ pre {
   overflow-y: auto;
   padding-top: 60px;
 }
+.bottom-cont {
+  width: 100%;
+  height: 5px;
+}
 .container {
   width: 100%;
-  height: 100dvh;
+  height: 100vh;
   display: flex;
   flex-direction: column;
   justify-content: flex-end;
@@ -346,10 +419,11 @@ pre {
 .cont-input {
   margin-top: 10px;
   width: 100%;
+
   margin-bottom: 10px;
+  padding-bottom: 10px;
   border-radius: 7px;
   background-color: #2e2e2e;
-  height: 30px;
 }
 
 .send-btn {
@@ -398,22 +472,19 @@ pre {
 
 .input-text {
   width: 100%;
-  height: 100%;
+  height: 30px;
   border: 0;
-  border-radius: 7px;
   color: white;
   white-space: normal;
   word-wrap: break-word;
   word-break: break-word;
   padding-left: 5px;
   font-family: "Kanit", "Inter";
-  background-color: #2e2e2e;
+  background-color: transparent;
   transition: all 0.5s ease;
 }
-
 input:focus {
   outline: none;
-  background-color: #4b4b4b;
 }
 
 .icon {
@@ -428,7 +499,5 @@ input:focus {
   display: flex;
   width: 22.5px;
   height: 22.5px;
-  position: relative;
-  left: 0.1px;
 }
 </style>
