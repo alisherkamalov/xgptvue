@@ -13,31 +13,31 @@
       <div class="shadow-logo"></div>
       I am G GPT!
     </div>
-
-    <div
-      v-for="(answer, index) in modifiedAnswers"
-      :key="index"
-      :id="`answer-${index}`"
-      :class="[classanswer, answer.class, answer.positionClass]"
-      :ref="(el) => (answerRefs[index] = el)"
-      :style="{
-        display: dispanswer,
-        opacity: answer.opacity,
-        transform: answer.translate,
-      }"
-      @mousedown="startHoldingInCopy(index)"
-    >
+    <div class="answers-column">
       <div
-        v-if="currentlyHeldIndex === index"
-        class="copy-btn"
-        @click="copyText(answer.text, index)"
-        :style="{ translate: translateCopyBtn, opacity: opacityCopyBtn }"
+        v-for="(answer, index) in modifiedAnswers"
+        :key="index"
+        :id="`answer-${index}`"
+        :class="[classanswer, answer.class, answer.positionClass]"
+        :ref="(el) => (answerRefs[index] = el)"
+        :style="{
+          display: dispanswer,
+          opacity: answer.opacity,
+          transform: answer.translate,
+        }"
+        @mousedown="startHoldingInCopy(index)"
       >
-        copy text
-      </div>
-      <template v-if="answer.codeBlock !== ''">
-        <div v-if="answer.beforeBackticks">{{ answer.beforeBackticks }}</div>
-        <pre>
+        <div
+          v-if="currentlyHeldIndex === index"
+          class="copy-btn"
+          @click="copyText(answer.text, index)"
+          :style="{ translate: translateCopyBtn, opacity: opacityCopyBtn }"
+        >
+          copy text
+        </div>
+        <template v-if="answer.codeBlock !== ''">
+          <div v-if="answer.beforeBackticks">{{ answer.beforeBackticks }}</div>
+          <pre>
       <code class="text-code">{{ answer.codeBlock }}</code>
       <button 
         class="copy-code" 
@@ -51,11 +51,12 @@
         </svg>
       </button>
     </pre>
-        <div v-if="answer.afterBackticks">{{ answer.afterBackticks }}</div>
-      </template>
-      <template v-else>
-        <span class="text">{{ answer.text }}</span>
-      </template>
+          <div v-if="answer.afterBackticks">{{ answer.afterBackticks }}</div>
+        </template>
+        <template v-else>
+          <span class="text">{{ answer.text }}</span>
+        </template>
+      </div>
     </div>
 
     <div class="chat">
@@ -146,7 +147,9 @@ watch(
   () => answers.value.length,
   () => {
     nextTick(() => {
-      answerRefs.value = Array.from(document.querySelectorAll('[id^="answer-"]'));
+      answerRefs.value = Array.from(
+        document.querySelectorAll('[id^="answer-"]')
+      );
     });
   }
 );
@@ -180,14 +183,15 @@ const stopHoldingInCopy = async () => {
     if (index >= 0 && index < answerRefs.value.length) {
       const element = answerRefs.value[index];
       if (element) {
+        element.style.zIndex = "0";
         element.style.transform = "translate(0px, 0px)";
-        element.style.zIndex = "2";
+        
       }
     }
 
     translateCopyBtn.value = "0px 50px";
     opacityCopyBtn.value = 0;
-    currentlyHeldIndex.value = null; 
+    currentlyHeldIndex.value = null;
   }
 };
 
@@ -244,7 +248,9 @@ const addInput = () => {
   inputs.value.push("");
   heightInput.value += 30;
   dispBottomcont.value = "flex";
-  document.querySelector("main").scrollTo(0, document.querySelector("main").scrollHeight);
+  document
+    .querySelector("main")
+    .scrollTo(0, document.querySelector("main").scrollHeight);
 
   nextTick(() => {
     const lastInput = document.querySelector(`#code-${inputs.value.length}`);
@@ -256,7 +262,9 @@ const addInput = () => {
 
 const removeInput = () => {
   if (inputs.value.length > 1) {
-    const lastInputElement = document.querySelector(`#code-${inputs.value.length}`);
+    const lastInputElement = document.querySelector(
+      `#code-${inputs.value.length}`
+    );
     if (lastInputElement && lastInputElement.value.trim() === "") {
       inputs.value.pop();
       heightInput.value -= 30;
@@ -274,7 +282,9 @@ const removeInput = () => {
           });
         }
 
-        const lastInput = document.querySelector(`#code-${inputs.value.length}`);
+        const lastInput = document.querySelector(
+          `#code-${inputs.value.length}`
+        );
         if (lastInput) {
           lastInput.focus();
         }
@@ -395,7 +405,6 @@ onUnmounted(() => {
 });
 </script>
 
-
 <style scoped>
 @keyframes load {
   from {
@@ -500,7 +509,7 @@ pre {
 }
 .container {
   width: 100%;
-  height: 100dvh;
+  height: 100vh;
   display: flex;
   flex-direction: column;
   justify-content: flex-end;
