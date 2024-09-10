@@ -9,7 +9,7 @@
         />
       </svg>
     </li>
-    <li>G-GPT</li>
+    <li>G GPT</li>
     <li class="icon">
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512">
         <!--!Font Awesome Free 6.6.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free Copyright 2024 Fonticons, Inc.-->
@@ -22,9 +22,22 @@
   </ul>
 </template>
 
-<script setup></script>
+<script setup>
+
+</script>
 
 <style scoped>
+@keyframes animateHeader {
+  to {
+    translate: 0px 0px;
+    opacity: 1;
+  }
+  from {
+    translate: 0px -50px;
+    opacity: 0.1;
+  }
+}
+
 .ul-header {
   width: 100%;
   height: 60px;
@@ -34,6 +47,7 @@
   font-size: 20px;
   z-index: 1;
   position: fixed;
+  animation: animateHeader 0.8s ease alternate;
   background-color: #040005;
   border-bottom: 1px solid grey;
   justify-content: space-between;

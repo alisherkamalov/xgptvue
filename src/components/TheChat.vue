@@ -1,44 +1,61 @@
 <template>
   <TheWarning :opacityWarning="opacityW" :translateWarning="translateW" />
+  <div
+    class="blur"
+    :style="{ opacity: blurOpacity }"
+    @click="stopHoldingInCopy"
+  >
+    <TheBlur />
+  </div>
   <div class="container">
     <div class="center-logo" :style="{ opacity: opacitybg }">
       <img src="/logo.png" class="gygole" />
-      I am G-GPT!
+      <div class="shadow-logo"></div>
+      I am G GPT!
     </div>
 
-    <div class="answers-column">
+    <div
+      v-for="(answer, index) in modifiedAnswers"
+      :key="index"
+      :id="`answer-${index}`"
+      :class="[classanswer, answer.class, answer.positionClass]"
+      :ref="(el) => (answerRefs[index] = el)"
+      :style="{
+        display: dispanswer,
+        opacity: answer.opacity,
+        transform: answer.translate,
+      }"
+      @mousedown="startHoldingInCopy(index)"
+    >
       <div
-        v-for="(answer, index) in modifiedAnswers"
-        :key="index"
-        :class="classanswer"
-        :style="{
-          display: dispanswer,
-          opacity: answer.opacity,
-          transform: answer.translate,
-        }"
+        v-if="currentlyHeldIndex === index"
+        class="copy-btn"
+        @click="copyText(answer.text, index)"
+        :style="{ translate: translateCopyBtn, opacity: opacityCopyBtn }"
       >
-        <template v-if="answer.codeBlock !== ''">
-          <div v-if="answer.beforeBackticks">{{ answer.beforeBackticks }}</div>
-          <pre>
-            <code class="text-code">{{ answer.codeBlock }}</code>
-            <button 
-              class="copy-code" 
-              @mousedown="startHolding" 
-              @mouseup="stopHolding" 
-              @mouseleave="stopHolding"
-              @click="copyText(answer.codeBlock)"
-            >
-              <svg class="ico-copy" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512">
-                <path :fill="colorCopy" d="M384 336l-192 0c-8.8 0-16-7.2-16-16l0-256c0-8.8 7.2-16 16-16l140.1 0L400 115.9 400 320c0 8.8-7.2 16-16 16zM192 384l192 0c35.3 0 64-28.7 64-64l0-204.1c0-12.7-5.1-24.9-14.1-33.9L366.1 14.1c-9-9-21.2-14.1-33.9-14.1L192 0c-35.3 0-64 28.7-64 64l0 256c0 35.3 28.7 64 64 64zM64 128c-35.3 0-64 28.7-64 64L0 448c0 35.3 28.7 64 64 64l192 0c35.3 0 64-28.7 64-64l0-32-48 0 0 32c0 8.8-7.2 16-16 16L64 464c-8.8 0-16-7.2-16-16l0-256c0-8.8 7.2-16 16-16l32 0 0-48-32 0z"/>
-              </svg>
-            </button>
-          </pre>
-          <div v-if="answer.afterBackticks">{{ answer.afterBackticks }}</div>
-        </template>
-        <template v-else>
-          <span class="text">{{ answer.text }}</span>
-        </template>
+        copy text
       </div>
+      <template v-if="answer.codeBlock !== ''">
+        <div v-if="answer.beforeBackticks">{{ answer.beforeBackticks }}</div>
+        <pre>
+      <code class="text-code">{{ answer.codeBlock }}</code>
+      <button 
+        class="copy-code" 
+        @mousedown="startHolding" 
+        @mouseup="stopHolding" 
+        @mouseleave="stopHolding"
+        @click="copyText(answer.codeBlock)"
+      >
+        <svg class="ico-copy" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512">
+          <path :fill="colorCopy" d="M384 336l-192 0c-8.8 0-16-7.2-16-16l0-256c0-8.8 7.2-16 16-16l140.1 0L400 115.9 400 320c0 8.8-7.2 16-16 16zM192 384l192 0c35.3 0 64-28.7 64-64l0-204.1c0-12.7-5.1-24.9-14.1-33.9L366.1 14.1c-9-9-21.2-14.1-33.9-14.1L192 0c-35.3 0-64 28.7-64 64l0 256c0 35.3 28.7 64 64 64zM64 128c-35.3 0-64 28.7-64 64L0 448c0 35.3 28.7 64 64 64l192 0c35.3 0 64-28.7 64-64l0-32-48 0 0 32c0 8.8-7.2 16-16 16L64 464c-8.8 0-16-7.2-16-16l0-256c0-8.8 7.2-16 16-16l32 0 0-48-32 0z"/>
+        </svg>
+      </button>
+    </pre>
+        <div v-if="answer.afterBackticks">{{ answer.afterBackticks }}</div>
+      </template>
+      <template v-else>
+        <span class="text">{{ answer.text }}</span>
+      </template>
     </div>
 
     <div class="chat">
@@ -61,7 +78,7 @@
               v-for="(input, index) in inputs"
               :key="index"
               type="text"
-              :id="`code-${index + 1}`"
+              :id="'code-' + (index + 1)"
               name="code[]"
               class="input-text"
               v-model="inputs[index]"
@@ -100,9 +117,11 @@
 </template>
 
 <script setup>
-import { ref, nextTick, onMounted, onUnmounted, computed } from "vue";
+import { ref, nextTick, onMounted, onUnmounted, computed, watch } from "vue";
 import TheWarning from "./TheWarning.vue";
+import TheBlur from "./TheBlur.vue";
 
+// Variables
 const opacitybg = ref(1);
 const inputs = ref([""]);
 const dispanswer = ref("block");
@@ -110,17 +129,71 @@ const classanswer = ref("answer");
 const answers = ref([]);
 const dispBottomcont = ref("none");
 const heightInput = ref(20);
-const loading = ref(false);
 const isSenttext = ref(false);
 const opacityW = ref(0.1);
+const blurOpacity = ref(0);
+const answerRefs = ref([]);
+const translateCopyBtn = ref("0px 50px");
+const opacityCopyBtn = ref(0);
+const holdingTextCopy = ref(false);
 const translateW = ref("0px -55px");
 const colorCopy = ref("white");
+const currentlyHeldIndex = ref(null);
 let intervalId = null;
+
+// Watchers
+watch(
+  () => answers.value.length,
+  () => {
+    nextTick(() => {
+      answerRefs.value = Array.from(document.querySelectorAll('[id^="answer-"]'));
+    });
+  }
+);
+
+// Methods
+const startHoldingInCopy = (index) => {
+  blurOpacity.value = 1;
+  holdingTextCopy.value = true;
+  currentlyHeldIndex.value = index;
+
+  if (answerRefs.value[index]) {
+    translateCopyBtn.value = "0px 0px";
+    opacityCopyBtn.value = 1;
+    answerRefs.value[index].style.transform = "translate(0px, -10px)";
+    answerRefs.value[index].style.zIndex = "99";
+
+    if ("vibrate" in navigator) {
+      navigator.vibrate(200);
+    }
+  }
+};
+
+const stopHoldingInCopy = async () => {
+  blurOpacity.value = 0;
+
+  if (holdingTextCopy.value && currentlyHeldIndex.value !== null) {
+    const index = currentlyHeldIndex.value;
+
+    await nextTick();
+
+    if (index >= 0 && index < answerRefs.value.length) {
+      const element = answerRefs.value[index];
+      if (element) {
+        element.style.transform = "translate(0px, 0px)";
+        element.style.zIndex = "2";
+      }
+    }
+
+    translateCopyBtn.value = "0px 50px";
+    opacityCopyBtn.value = 0;
+    currentlyHeldIndex.value = null; 
+  }
+};
 
 const copyText = async (text) => {
   try {
     await navigator.clipboard.writeText(text);
-    console.log("Text copied to clipboard");
   } catch (err) {
     console.error("Failed to copy text: ", err);
   }
@@ -128,9 +201,7 @@ const copyText = async (text) => {
 
 const startHolding = () => {
   colorCopy.value = "black";
-  intervalId = setInterval(() => {
-    console.log("Button is being held down");
-  }, 100);
+  intervalId = setInterval(() => {}, 100);
 };
 
 const stopHolding = () => {
@@ -160,9 +231,12 @@ const splitText = (text) => {
 };
 
 const modifiedAnswers = computed(() =>
-  answers.value.map((answer) => ({
+  answers.value.map((answer, index) => ({
     ...answer,
     ...splitText(answer.text),
+    class:
+      blurOpacity.value && index < answers.value.length - 1 ? "blurred" : "",
+    positionClass: currentlyHeldIndex.value === index ? "" : "revert-position",
   }))
 );
 
@@ -170,16 +244,9 @@ const addInput = () => {
   inputs.value.push("");
   heightInput.value += 30;
   dispBottomcont.value = "flex";
+  document.querySelector("main").scrollTo(0, document.querySelector("main").scrollHeight);
 
   nextTick(() => {
-    const chatSection = document.querySelector(".chat");
-    if (chatSection) {
-      chatSection.scrollTo({
-        top: chatSection.scrollHeight,
-        behavior: "smooth",
-      });
-    }
-
     const lastInput = document.querySelector(`#code-${inputs.value.length}`);
     if (lastInput) {
       lastInput.focus();
@@ -189,27 +256,30 @@ const addInput = () => {
 
 const removeInput = () => {
   if (inputs.value.length > 1) {
-    inputs.value.pop();
-    heightInput.value -= 30;
+    const lastInputElement = document.querySelector(`#code-${inputs.value.length}`);
+    if (lastInputElement && lastInputElement.value.trim() === "") {
+      inputs.value.pop();
+      heightInput.value -= 30;
 
-    if (inputs.value.length === 1) {
-      dispBottomcont.value = "none";
+      if (inputs.value.length === 1) {
+        dispBottomcont.value = "none";
+      }
+
+      nextTick(() => {
+        const chatSection = document.querySelector(".chat");
+        if (chatSection) {
+          chatSection.scrollTo({
+            top: chatSection.scrollHeight,
+            behavior: "smooth",
+          });
+        }
+
+        const lastInput = document.querySelector(`#code-${inputs.value.length}`);
+        if (lastInput) {
+          lastInput.focus();
+        }
+      });
     }
-
-    nextTick(() => {
-      const chatSection = document.querySelector(".chat");
-      if (chatSection) {
-        chatSection.scrollTo({
-          top: chatSection.scrollHeight,
-          behavior: "smooth",
-        });
-      }
-
-      const lastInput = document.querySelector(`#code-${inputs.value.length}`);
-      if (lastInput) {
-        lastInput.focus();
-      }
-    });
   }
 };
 
@@ -237,7 +307,6 @@ const scrollToBottom = () => {
 
 const sendAnswer = async () => {
   isSenttext.value = true;
-
   const combinedText = inputs.value.join(" ").trim();
 
   if (combinedText === "") {
@@ -278,20 +347,23 @@ const sendAnswer = async () => {
           opacitybg.value = 0;
           classanswer.value = "answer active";
           const lastAnswer = answers.value[answers.value.length - 1];
-          lastAnswer.opacity = 1;
-          lastAnswer.translate = "0px 0px";
+          setTimeout(() => {
+            lastAnswer.opacity = 1;
+            lastAnswer.translate = "0px 0px";
+          }, 10);
 
           scrollToBottom();
-          loading.value = false;
           isSenttext.value = false;
         }, 10);
-        inputs.value = [inputs.value[0]];
+
+        inputs.value = [""];
         heightInput.value = 20;
         dispBottomcont.value = "none";
 
         const firstInput = document.querySelector(`#code-1`);
-
-        firstInput.value = "";
+        if (firstInput) {
+          firstInput.value = "";
+        }
       }
     }
   } catch (error) {
@@ -301,6 +373,12 @@ const sendAnswer = async () => {
 };
 
 onMounted(() => {
+  answerRefs.value = Array.from(document.querySelectorAll('[id^="answer-"]'));
+  opacitybg.value = 0;
+  setTimeout(() => {
+    opacitybg.value = 1;
+  }, 300);
+
   const inputContainer = document.querySelector("#cont-input");
   if (inputContainer) {
     inputContainer.addEventListener("keydown", handleKeydown);
@@ -317,6 +395,7 @@ onUnmounted(() => {
 });
 </script>
 
+
 <style scoped>
 @keyframes load {
   from {
@@ -326,6 +405,50 @@ onUnmounted(() => {
     opacity: 1;
   }
 }
+@keyframes logoAnimate {
+  0% {
+    transform: translateY(-10px);
+  }
+  50% {
+    transform: translateY(0px);
+  }
+  100% {
+    transform: translateY(-10px);
+  }
+}
+.blur {
+  transition: all 0.1s ease;
+}
+.revert-position {
+  position: revert;
+}
+
+.copy-btn {
+  width: 80px;
+  display: flex;
+  padding: 2px;
+  position: absolute;
+  top: -40px;
+  left: -1px;
+  border-radius: 15px;
+  font-family: "Kanit", "Inter";
+  color: grey;
+  justify-content: center;
+  box-shadow: rgba(0, 0, 0, 1) 0px 5px 15px;
+  background-color: #2e2e2e;
+  transition: all 0.1s ease;
+}
+.copy-btn:active {
+  color: white;
+}
+.shadow-logo {
+  width: 100px;
+  height: 1px;
+  translate: 0px 10px;
+  box-shadow: rgba(0, 255, 64, 1) 0px -20px 16px,
+    rgba(0, 255, 64, 1) 0px -20px 24px, rgba(0, 255, 64, 1) 0px -20px 56px;
+}
+
 .loading {
   opacity: 0.1;
   animation: load 1s infinite alternate ease-in-out;
@@ -404,8 +527,9 @@ pre {
   transition: all 0.5s ease;
 }
 .gygole {
-  width: 50px;
+  width: 60px;
   transition: all 0.5s ease;
+  animation: logoAnimate 3s infinite ease-in-out;
 }
 
 .input-message {
@@ -453,10 +577,12 @@ pre {
   padding: 10px;
   margin: 10px;
   opacity: 0;
+  cursor: pointer;
   border-radius: 10px;
   color: white;
   font-family: "Kanit", "Inter";
   font-weight: 300;
+  position: relative;
   transform: translateY(50px);
   white-space: normal;
   word-wrap: break-word;
