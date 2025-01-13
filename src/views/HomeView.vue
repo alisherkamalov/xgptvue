@@ -8,9 +8,15 @@ import TheHeader from '../components/TheHeader.vue'
     <TheHeader></TheHeader>
   </header>
   <main>
-    
     <section class="chat">
       <TheChat />
     </section>
   </main>
 </template>
+<style scoped>
+.chat {
+  display: flex;
+  width: 100%;
+  height: 100dvh;
+}
+</style>
